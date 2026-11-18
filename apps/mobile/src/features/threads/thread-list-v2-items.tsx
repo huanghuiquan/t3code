@@ -451,6 +451,7 @@ const DRAFT_TASK_MENU_ACTIONS: MenuAction[] = [
 ];
 
 export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props: {
+  readonly compact?: boolean;
   readonly pendingTask: PendingNewTask;
   readonly selected?: boolean;
   readonly project: EnvironmentProject | null;
@@ -469,7 +470,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
 }) {
   const { pendingTask, onSelectPendingTask, onDeletePendingTask } = props;
   const { width: windowWidth, fontScale } = useWindowDimensions();
-  const titleTypography = useScaledTextRole("body");
+  const titleTypography = useScaledTextRole(props.compact ? "footnote" : "body");
   const metadataTypography = useScaledTextRole("label");
   const projectIconSize = titleTypography.fontSize * 1.25 * fontScale;
   const machineIconSize = metadataTypography.fontSize * fontScale;
@@ -482,7 +483,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
   const dormant = useSwipeRowDormant(props.activationKey);
   const theme = useUniwindTheme();
   const sidebarPane = props.pane === "sidebar";
-  const selected = props.selected ?? false;
+  const selected = !props.compact && (props.selected ?? false);
   const rowAppearance = getThreadListV2RowAppearance(theme, sidebarPane, selected);
   const gt = useGT();
   const m = useMessages();
@@ -536,11 +537,20 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
     [onDeletePendingTask, pendingTask],
   );
 
-  const titleTextInset = props.project ? projectIconSize + 8 : 0;
+  const titleTextInset = !props.compact && props.project ? projectIconSize + 8 : 0;
   const rowContent = (
     <>
-      <View className="flex-row items-start gap-2">
-        {props.project ? (
+      <View
+        className={props.compact ? "flex-row items-center gap-2" : "flex-row items-start gap-2"}
+      >
+        {props.compact && props.environmentMachine ? (
+          <EnvironmentMachineSymbol
+            kind={props.environmentMachine}
+            size={12}
+            tintColorClassName="accent-foreground-tertiary"
+          />
+        ) : null}
+        {!props.compact && props.project ? (
           <View className="justify-center" style={{ height: titleLineHeight }}>
             <ProjectFavicon
               environmentId={pendingTask.environmentId}
@@ -554,12 +564,12 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
         ) : null}
         <Text
           className={cn(
-            "flex-1 text-base font-t3-medium",
+            props.compact ? "flex-1 text-sm" : "flex-1 text-base font-t3-medium",
             selected
               ? selectedThreadRowColors.foregroundClassName
               : rowAppearance.foregroundClassName,
           )}
-          numberOfLines={2}
+          numberOfLines={props.compact ? 1 : 2}
           onTextLayout={
             Platform.OS === "android"
               ? ({ nativeEvent }) => {
@@ -613,7 +623,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
           </Text>
         </View>
       ) : null}
-      {branch || props.environmentLabel ? (
+      {!props.compact && (branch || props.environmentLabel) ? (
         <View className="mt-1 flex-row items-center gap-1" style={{ paddingLeft: titleTextInset }}>
           {props.environmentLabel && props.environmentMachine ? (
             <EnvironmentMachineSymbol
@@ -718,15 +728,23 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
               key={pendingTask.key}
               className={rowAppearance.className}
               interactionClassName={rowAppearance.interactionClassName}
-              interactionOpacity={rowAppearance.interactionOpacity}
+              interactionOpacity={props.compact ? 0 : rowAppearance.interactionOpacity}
               onPress={() => onSelectPendingTask(pendingTask)}
-              style={rowAppearance.cardStyle}
+              style={props.compact ? rowAppearance.style : rowAppearance.cardStyle}
             >
-              {sidebarPane ? (
+              {sidebarPane && !props.compact ? (
                 rowContent
               ) : (
                 <View>
-                  <View className={THREAD_LIST_V2_ROW_CONTENT_CLASS_NAME}>{rowContent}</View>
+                  <View
+                    className={
+                      props.compact
+                        ? "min-h-[36px] justify-center pl-10 pr-5 py-1"
+                        : THREAD_LIST_V2_ROW_CONTENT_CLASS_NAME
+                    }
+                  >
+                    {rowContent}
+                  </View>
                   {THREAD_LIST_V2_ROW_DIVIDERS && props.showTrailingDivider !== false ? (
                     <View className="ml-5 h-px bg-border-subtle" />
                   ) : null}
@@ -741,6 +759,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
 });
 
 export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
+  readonly compact?: boolean;
   readonly thread: EnvironmentThreadShell;
   readonly variant: "card" | "slim";
   readonly hasQueuedMessages?: boolean;
@@ -797,7 +816,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly simultaneousSwipeGesture?: ComponentProps<typeof ThreadSwipeable>["simultaneousWith"];
 }) {
   const { width: windowWidth, fontScale } = useWindowDimensions();
-  const titleTypography = useScaledTextRole("body");
+  const titleTypography = useScaledTextRole(props.compact ? "footnote" : "body");
   const metadataTypography = useScaledTextRole("label");
   const projectIconSize = titleTypography.fontSize * 1.25 * fontScale;
   const machineIconSize = metadataTypography.fontSize * fontScale;
@@ -862,7 +881,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
 
   const theme = useUniwindTheme();
   const sidebarPane = props.pane === "sidebar";
-  const selected = props.selected === true;
+  const selected = !props.compact && props.selected === true;
   const rowAppearance = getThreadListV2RowAppearance(theme, sidebarPane, selected);
 
   const rawStatus = resolveThreadListV2Status(thread);
@@ -1348,11 +1367,20 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       ? primaryAction.swipeHint
       : primaryAction.swipeSnoozeHint;
 
-  const titleTextInset = props.project ? projectIconSize + 8 : 0;
+  const titleTextInset = !props.compact && props.project ? projectIconSize + 8 : 0;
   const cardContent = (
     <>
-      <View className="flex-row items-start gap-2">
-        {props.project ? (
+      <View
+        className={props.compact ? "flex-row items-center gap-2" : "flex-row items-start gap-2"}
+      >
+        {props.compact && props.environmentMachine ? (
+          <EnvironmentMachineSymbol
+            kind={props.environmentMachine}
+            size={12}
+            tintColorClassName="accent-foreground-tertiary"
+          />
+        ) : null}
+        {!props.compact && props.project ? (
           <View className="justify-center" style={{ height: titleLineHeight }}>
             <ProjectFavicon
               environmentId={thread.environmentId}
@@ -1366,14 +1394,14 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         ) : null}
         <Text
           className={cn(
-            "flex-1 text-base",
-            !recede && "font-t3-medium",
+            props.compact ? "flex-1 text-sm" : "flex-1 text-base",
+            !props.compact && !recede && "font-t3-medium",
             selected
               ? selectedThreadRowColors.foregroundClassName
               : rowAppearance.foregroundClassName,
             isRegeneratingTitle && "opacity-55",
           )}
-          numberOfLines={2}
+          numberOfLines={props.compact ? 1 : 2}
           onTextLayout={
             Platform.OS === "android"
               ? ({ nativeEvent }) => {
@@ -1485,128 +1513,132 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           />
         </View>
       ) : null}
-      <View className="mt-1 flex-row items-center gap-2" style={{ paddingLeft: titleTextInset }}>
-        {(rawStatus === "failed" || rawStatus === "limited") && thread.runtime?.lastError ? (
-          <Text
-            className={cn(
-              "flex-1 text-xs",
-              selected
-                ? selectedThreadRowColors.mutedForegroundClassName
-                : status === "limited"
-                  ? "text-warning-foreground"
-                  : "text-danger-foreground",
-            )}
-            numberOfLines={1}
-          >
-            {thread.runtime.lastError}
-          </Text>
-        ) : props.environmentLabel ? (
-          <View className="min-w-0 flex-1 flex-row items-center gap-1">
-            {props.environmentMachine ? (
-              <EnvironmentMachineSymbol
-                kind={props.environmentMachine}
-                size={machineIconSize}
-                tintColorClassName={
-                  selected
-                    ? selectedThreadRowColors.mutedIconTintClassName
-                    : rowAppearance.tertiaryIconTintClassName
-                }
-              />
-            ) : null}
+      {!props.compact ||
+      pr ||
+      ((rawStatus === "failed" || rawStatus === "limited") && thread.runtime?.lastError) ? (
+        <View className="mt-1 flex-row items-center gap-2" style={{ paddingLeft: titleTextInset }}>
+          {(rawStatus === "failed" || rawStatus === "limited") && thread.runtime?.lastError ? (
             <Text
               className={cn(
-                "shrink text-xs",
+                "flex-1 text-xs",
                 selected
                   ? selectedThreadRowColors.mutedForegroundClassName
-                  : rowAppearance.tertiaryForegroundClassName,
+                  : status === "limited"
+                    ? "text-warning-foreground"
+                    : "text-danger-foreground",
               )}
               numberOfLines={1}
             >
-              {props.environmentLabel}
+              {thread.runtime.lastError}
             </Text>
-          </View>
-        ) : (
-          <View className="flex-1" />
-        )}
-        {pr ? (
-          <Pressable
-            // Padding cancelled by negative margin grows the touch target into
-            // the row padding without moving the badge.
-            className="-m-2.5 flex-row items-center gap-1 p-2.5"
-            accessibilityRole="button"
-            accessibilityLabel={prBadgeLabel ?? undefined}
-            onPress={handleOpenPullRequests}
-            // Handle long-press so opening the iOS row menu cannot also open the PR on release.
-            onLongPress={() => undefined}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <SymbolView
-              name={
-                pr.kind === "stack"
-                  ? PullRequestGlyph.stack
-                  : pr.state === null
-                    ? PullRequestGlyph.pullRequest
-                    : pullRequestStatus({ state: pr.state, isDraft: pr.isDraft }).icon
-              }
-              size={12}
-              tintColorClassName={
-                pr.state === null || pr.isDraft
-                  ? rowAppearance.mutedIconTintClassName
-                  : pr.state === "open"
-                    ? "accent-adaptive-emerald-600-400"
-                    : pr.state === "closed"
-                      ? "accent-adaptive-rose-600-400"
-                      : "accent-adaptive-violet-600-400"
-              }
-            />
-            <Text
-              accessibilityLabel={pr.accessibilityLabel}
-              className={cn("text-xs", pr.textClassName)}
-              style={{ fontFamily: MONO_FONT }}
-            >
-              {pr.label}
-            </Text>
-          </Pressable>
-        ) : null}
-        {providerInstance ? (
-          <View className="flex-row items-center">
-            {providerDrivers.slice(0, -1).map(
-              (driver, index) => (
-                /* oxlint-disable react/no-array-index-key -- Provider history can repeat a driver; these decorative icons have no local state. */ <View
-                  key={`${driver}:${index}`}
-                  className="-mr-1 opacity-30"
-                >
-                  <ProviderIcon provider={driver} size={12} />
-                </View>
-              ) /* oxlint-enable react/no-array-index-key */,
-            )}
-            <ProviderInstanceIcon
-              iconUrl={providerIconUrl}
-              provider={providerInstance.driverKind}
-              size={14}
-              displayName={providerInstance.displayName}
-              accentColor={providerInstance.accentColor}
-              showBadge={providerInstance.showBadge}
-              surfaceColor={rowAppearance.providerIconSurfaceColor}
-            />
-            {providerNameLabel ? (
+          ) : props.environmentLabel ? (
+            <View className="min-w-0 flex-1 flex-row items-center gap-1">
+              {props.environmentMachine ? (
+                <EnvironmentMachineSymbol
+                  kind={props.environmentMachine}
+                  size={machineIconSize}
+                  tintColorClassName={
+                    selected
+                      ? selectedThreadRowColors.mutedIconTintClassName
+                      : rowAppearance.tertiaryIconTintClassName
+                  }
+                />
+              ) : null}
               <Text
                 className={cn(
-                  "ml-1.5 text-xs",
+                  "shrink text-xs",
                   selected
                     ? selectedThreadRowColors.mutedForegroundClassName
                     : rowAppearance.tertiaryForegroundClassName,
                 )}
-                ellipsizeMode="middle"
                 numberOfLines={1}
-                style={{ maxWidth: 140 }}
               >
-                {providerNameLabel}
+                {props.environmentLabel}
               </Text>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+            </View>
+          ) : (
+            <View className="flex-1" />
+          )}
+          {pr ? (
+            <Pressable
+              // Padding cancelled by negative margin grows the touch target into
+              // the row padding without moving the badge.
+              className="-m-2.5 flex-row items-center gap-1 p-2.5"
+              accessibilityRole="button"
+              accessibilityLabel={prBadgeLabel ?? undefined}
+              onPress={handleOpenPullRequests}
+              // Handle long-press so opening the iOS row menu cannot also open the PR on release.
+              onLongPress={() => undefined}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <SymbolView
+                name={
+                  pr.kind === "stack"
+                    ? PullRequestGlyph.stack
+                    : pr.state === null
+                      ? PullRequestGlyph.pullRequest
+                      : pullRequestStatus({ state: pr.state, isDraft: pr.isDraft }).icon
+                }
+                size={12}
+                tintColorClassName={
+                  pr.state === null || pr.isDraft
+                    ? rowAppearance.mutedIconTintClassName
+                    : pr.state === "open"
+                      ? "accent-adaptive-emerald-600-400"
+                      : pr.state === "closed"
+                        ? "accent-adaptive-rose-600-400"
+                        : "accent-adaptive-violet-600-400"
+                }
+              />
+              <Text
+                accessibilityLabel={pr.accessibilityLabel}
+                className={cn("text-xs", pr.textClassName)}
+                style={{ fontFamily: MONO_FONT }}
+              >
+                {pr.label}
+              </Text>
+            </Pressable>
+          ) : null}
+          {!props.compact && providerInstance ? (
+            <View className="flex-row items-center">
+              {providerDrivers.slice(0, -1).map(
+                (driver, index) => (
+                  /* oxlint-disable react/no-array-index-key -- Provider history can repeat a driver; these decorative icons have no local state. */ <View
+                    key={`${driver}:${index}`}
+                    className="-mr-1 opacity-30"
+                  >
+                    <ProviderIcon provider={driver} size={12} />
+                  </View>
+                ) /* oxlint-enable react/no-array-index-key */,
+              )}
+              <ProviderInstanceIcon
+                iconUrl={providerIconUrl}
+                provider={providerInstance.driverKind}
+                size={14}
+                displayName={providerInstance.displayName}
+                accentColor={providerInstance.accentColor}
+                showBadge={providerInstance.showBadge}
+                surfaceColor={rowAppearance.providerIconSurfaceColor}
+              />
+              {!props.compact && providerNameLabel ? (
+                <Text
+                  className={cn(
+                    "ml-1.5 text-xs",
+                    selected
+                      ? selectedThreadRowColors.mutedForegroundClassName
+                      : rowAppearance.tertiaryForegroundClassName,
+                  )}
+                  ellipsizeMode="middle"
+                  numberOfLines={1}
+                  style={{ maxWidth: 140 }}
+                >
+                  {providerNameLabel}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
     </>
   );
 
@@ -1621,12 +1653,12 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       <RowPressable
         key={`${thread.environmentId}:${thread.id}`}
         interactionClassName={rowAppearance.interactionClassName}
-        interactionOpacity={rowAppearance.interactionOpacity}
+        interactionOpacity={props.compact ? 0 : rowAppearance.interactionOpacity}
         className={rowAppearance.className}
         accessibilityHint={swipeAccessibilityHint}
         accessibilityLabel={rowAccessibilityLabel}
         accessibilityRole="button"
-        accessibilityState={{ selected }}
+        accessibilityState={{ selected: props.selected ?? false }}
         accessibilityActions={rowAccessibilityActions}
         onAccessibilityAction={(event) => {
           if (event.nativeEvent.actionName === "openPullRequests") handleOpenPullRequests();
@@ -1636,13 +1668,21 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           close();
           selectThread();
         }}
-        style={rowAppearance.cardStyle}
+        style={props.compact ? rowAppearance.style : rowAppearance.cardStyle}
       >
-        {sidebarPane ? (
+        {sidebarPane && !props.compact ? (
           fadedCardContent
         ) : (
           <View>
-            <View className={THREAD_LIST_V2_ROW_CONTENT_CLASS_NAME}>{fadedCardContent}</View>
+            <View
+              className={
+                props.compact
+                  ? "min-h-[36px] justify-center pl-10 pr-5 py-1"
+                  : THREAD_LIST_V2_ROW_CONTENT_CLASS_NAME
+              }
+            >
+              {fadedCardContent}
+            </View>
             {THREAD_LIST_V2_ROW_DIVIDERS && props.showTrailingDivider !== false ? (
               <View className="ml-5 h-px bg-border-subtle" />
             ) : null}
@@ -1653,11 +1693,11 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       <RowPressable
         key={`${thread.environmentId}:${thread.id}`}
         interactionClassName={rowAppearance.interactionClassName}
-        interactionOpacity={rowAppearance.interactionOpacity}
+        interactionOpacity={props.compact ? 0 : rowAppearance.interactionOpacity}
         accessibilityHint={swipeAccessibilityHint}
         accessibilityLabel={rowAccessibilityLabel}
         accessibilityRole="button"
-        accessibilityState={{ selected }}
+        accessibilityState={{ selected: props.selected ?? false }}
         className={rowAppearance.className}
         onPress={() => {
           close();
@@ -1667,12 +1707,16 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       >
         <View
           className={cn(
-            THREAD_LIST_V2_ROW_CONTENT_CLASS_NAME,
-            "min-h-[44px] flex-row items-center gap-2 py-2",
+            props.compact
+              ? "min-h-[36px] flex-row items-center gap-2 pl-10 pr-5 py-1"
+              : cn(
+                  THREAD_LIST_V2_ROW_CONTENT_CLASS_NAME,
+                  "min-h-[44px] flex-row items-center gap-2 py-2",
+                ),
             sidebarPane && "px-3",
           )}
         >
-          {props.project ? (
+          {!props.compact && props.project ? (
             <View className="opacity-40">
               <ProjectFavicon
                 environmentId={thread.environmentId}
@@ -1687,7 +1731,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           <View className="min-w-0 flex-1">
             <Text
               className={cn(
-                "text-base",
+                props.compact ? "text-sm" : "text-base",
                 selected
                   ? selectedThreadRowColors.foregroundClassName
                   : rowAppearance.mutedForegroundClassName,
@@ -1697,7 +1741,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             >
               {thread.title}
             </Text>
-            {providerNameLabel ? (
+            {!props.compact && providerNameLabel ? (
               <Text
                 className={cn(
                   "text-xs",

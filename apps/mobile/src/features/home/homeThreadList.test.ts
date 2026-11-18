@@ -7,7 +7,8 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { buildHomeProjectScopes, findHomeProjectScope } from "./homeThreadList";
 import { makeThreadShellFixture } from "../../test-fixtures";
-import { buildThreadListV2Items } from "../threads/threadListV2";
+import { buildProjectThreadList } from "./projectThreadList";
+import { buildThreadListV2Items, buildThreadListV2ListItems } from "../threads/threadListV2";
 
 function makeProject(
   input: Partial<EnvironmentProject> & Pick<EnvironmentProject, "environmentId" | "id" | "title">,
@@ -192,6 +193,50 @@ describe("home project scopes", () => {
         projectGroupingMode: "repository",
       }),
     ).toHaveLength(2);
+  });
+
+  it("orders project sections by activity and collapses only the project on the chosen host", () => {
+    const mac = EnvironmentId.make("mac");
+    const cloud = EnvironmentId.make("cloud");
+    const projectId = ProjectId.make("shared");
+    const thread = (environmentId: EnvironmentId, id: string, day: string) =>
+      makeThread({
+        environmentId,
+        projectId,
+        id: ThreadId.make(id),
+        title: id,
+        updatedAt: `2026-06-${day}T16:00:00Z`,
+      });
+    const threads = [
+      thread(mac, "old", "01"),
+      thread(cloud, "other", "02"),
+      thread(mac, "new", "03"),
+    ];
+    const layout = buildThreadListV2Items({
+      threads,
+      environmentId: null,
+      searchQuery: "",
+      now: "2026-06-04T16:00:00Z",
+    });
+    const rows = buildThreadListV2ListItems({ items: layout.items, pendingTasks: [] });
+    const titles = (mode: "projects" | "recent", collapsed = new Set<string>()) =>
+      buildProjectThreadList(rows, mode, collapsed).map((row) =>
+        row.type === "v2-thread" ? row.item.thread.title : row.key,
+      );
+    expect(titles("projects")).toEqual([
+      "project:mac:shared",
+      "new",
+      "old",
+      "project:cloud:shared",
+      "other",
+    ]);
+    const collapsed = new Set(["mac:shared"]);
+    expect(titles("projects", collapsed)).toEqual([
+      "project:mac:shared",
+      "project:cloud:shared",
+      "other",
+    ]);
+    expect(titles("recent", collapsed)).toEqual(["new", "other", "old"]);
   });
 
   it("prefers an exact scope key over a project ID that collides with it", () => {

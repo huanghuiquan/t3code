@@ -1,3 +1,4 @@
+import { scopedProjectKey } from "../../lib/scopedEntities";
 import { uuidv4 } from "../../lib/uuid";
 import { ThreadUndoNotice } from "./ThreadUndoNotice";
 import { use } from "react";
@@ -116,6 +117,7 @@ export function HomeRouteScreen() {
   );
   const {
     options: listOptions,
+    setScope,
     setSelectedEnvironmentId,
     setSelectedProjectKey,
   } = useHomeListOptions(availableEnvironmentIds);
@@ -147,8 +149,17 @@ export function HomeRouteScreen() {
       })),
     [projectScopes, threads],
   );
-  const selectedProjectKey =
-    resolveHomeProjectFilterScope(projectScopes, projects, listOptions)?.key ?? null;
+  const exactProject =
+    Platform.OS === "ios" &&
+    projects.some(
+      (project) =>
+        !project.archivedAt &&
+        project.environmentId === selectedEnvironmentId &&
+        scopedProjectKey(project.environmentId, project.id) === listOptions.selectedProjectKey,
+    );
+  const selectedProjectKey = exactProject
+    ? listOptions.selectedProjectKey
+    : (resolveHomeProjectFilterScope(projectScopes, projects, listOptions)?.key ?? null);
 
   if (layout.usesSplitView && !nativePrimaryColumn) {
     return (
@@ -204,8 +215,7 @@ export function HomeRouteScreen() {
           onMoveThread={moveThread}
           onRenameThread={renameThread}
           onRegenerateThreadTitle={regenerateThreadTitle}
-          onEnvironmentChange={setSelectedEnvironmentId}
-          onProjectChange={setSelectedProjectKey}
+          onSelectScope={setScope}
           onOpenSettings={() => selectTab("settings")}
           onSearchQueryChange={setSearchQuery}
           onSelectThread={handleSelectThread}

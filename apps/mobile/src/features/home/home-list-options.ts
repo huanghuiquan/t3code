@@ -103,6 +103,8 @@ export function useHomeListOptions(availableEnvironmentIds: ReadonlySet<Environm
   };
   return {
     options: resolvedOptions,
+    setScope: (selectedEnvironmentId: EnvironmentId | null, selectedProjectKey: string | null) =>
+      updateOptions({ selectedEnvironmentId, selectedProjectKey }),
     setSelectedEnvironmentId,
     setSelectedProjectKey,
     setProjectSortOrder,
