@@ -1,0 +1,80 @@
+name: Personal iPhone IPA
+on:
+  push:
+    branches: [build/ios-compact-list-20261119]
+permissions:
+  contents: read
+concurrency:
+  group: personal-iphone-compact-list
+  cancel-in-progress: true
+jobs:
+  ipa:
+    if: github.repository == 'huanghuiquan/t3code'
+    runs-on: xcode-27
+    timeout-minutes: 90
+    env:
+      APP_VARIANT: preview
+      T3CODE_IOS_PERSONAL_TEAM: '1'
+      T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID: com.huanghuiquan.t3code.compact
+      T3CODE_MOBILE_UPDATES_ENABLED: '0'
+      EXPO_NO_TELEMETRY: '1'
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: package.json
+          package-manager-cache: false
+      - name: Install mobile dependencies
+        run: |
+          npm install --global --force pnpm@12.14.0
+          pnpm --filter @t3tools/mobile... --filter @t3tools/monorepo install --frozen-lockfile
+      - name: Generate the iOS project
+        working-directory: apps/mobile
+        run: |
+          xcodebuild -version
+          cp ../../.env.example ../../.env
+          pnpm exec expo prebuild --platform ios --no-install
+          cd ios
+          pod install
+      - name: Compile for physical iPhones
+        working-directory: apps/mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspaces=(ios/*.xcworkspace)
+          schemes=(ios/*.xcodeproj/xcshareddata/xcschemes/*.xcscheme)
+          test -d "${workspaces[0]}" && test -f "${schemes[0]}"
+          scheme="$(basename "${schemes[0]}" .xcscheme)"
+          xcodebuild -quiet -workspace "${workspaces[0]}" -scheme "$scheme" \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/t3-derived" ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO COMPILER_INDEX_STORE_ENABLE=NO build
+      - name: Package and verify the IPA for personal signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          apps=("$RUNNER_TEMP"/t3-derived/Build/Products/Release-iphoneos/*.app)
+          test "${#apps[@]}" = 1 && test -d "${apps[0]}"
+          mkdir -p "$RUNNER_TEMP/stage/Payload"
+          app="$RUNNER_TEMP/stage/Payload/$(basename "${apps[0]}")"
+          ditto "${apps[0]}" "$app"
+          exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")
+          lipo -verify_arch arm64 "$app/$exe"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :DTPlatformName' "$app/Info.plist")" = iphoneos
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = "$T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID"
+          test -s "$app/main.jsbundle"
+          cd "$RUNNER_TEMP/stage"
+          ditto -c -k --keepParent Payload "$RUNNER_TEMP/T3Code-Compact-personal.ipa"
+          unzip -tq "$RUNNER_TEMP/T3Code-Compact-personal.ipa"
+          shasum -a 256 "$RUNNER_TEMP/T3Code-Compact-personal.ipa"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: T3Code-Compact-personal
+          path: ${{ runner.temp }}/T3Code-Compact-personal.ipa
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
