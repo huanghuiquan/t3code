@@ -14,16 +14,19 @@ jobs:
     timeout-minutes: 90
     env:
       APP_VARIANT: preview
-      T3CODE_IOS_PERSONAL_TEAM: '1'
+      T3CODE_IOS_PERSONAL_TEAM: "1"
       T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID: com.huanghuiquan.t3code.compact
-      T3CODE_MOBILE_UPDATES_ENABLED: '0'
-      EXPO_NO_TELEMETRY: '1'
-      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      T3CODE_MOBILE_UPDATES_ENABLED: "0"
+      EXPO_NO_TELEMETRY: "1"
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
+      - name: Fetch the public build commit
+        run: |
+          git init -q
+          git fetch -q --depth=1 --no-recurse-submodules "https://github.com/$GITHUB_REPOSITORY.git" "$GITHUB_SHA"
+          git -c submodule.recurse=false checkout -q --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version-file: package.json
